@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: techglow-web
+  name: techglow-se
+  labels:
+    app: httpd-techglow-se
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: httpd-techglow-se
+  template:
+    metadata:
+      labels:
+        app: httpd-techglow-se
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+      containers:
+        - name: httpd-techglow-se
+          image: __IMAGE__
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: env-configmap
+            - secretRef:
+                name: env-secrets
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: techglow-web
+  labels:
+    app: httpd-techglow-se
+  name: httpd-techglow-se
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: httpd-techglow-se
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: techglow-web
+  annotations:
+    nginx.ingress.kubernetes.io/proxy_pass_request_headers : "true"
+#    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+#    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  name: httpd-techglow-se-ingress
+spec:
+  rules:
+    - host: techglow.se
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: httpd-techglow-se
+                port:
+                  number: 80

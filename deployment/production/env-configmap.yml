@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-configmap
+  namespace: techglow-web
+data:
+data:
+  APP_DEBUG: 'false'
+  APP_ENV: production
+  APP_NAME: techglow.se
+  APP_URL: https://techglow.se/
+  AWS_BUCKET: ancient-glitter
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_ENDPOINT: https://objects.dc-sto1.glesys.net
+  AWS_URL: https://objects.dc-sto1.glesys.net
+  AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+  BROADCAST_DRIVER: log
+  CACHE_DRIVER: file
+  DB_CONNECTION: mysql
+  DB_DATABASE: techglow_prod
+  DB_HOST: 86.106.25.21
+  DB_PORT: '3306'
+  DB_USERNAME: techglow_prod
+  FILESYSTEM_DISK: local
+  LOG_CHANNEL: stack
+  LOG_LEVEL: info
+  MAIL_ENCRYPTION: tls
+  MAIL_FROM_ADDRESS: noreply@techglow.se
+  MAIL_FROM_NAME: techglow.se
+  MAIL_HOST: smtp.eu.mailgun.org
+  MAIL_MAILER: smtp
+  MAIL_PORT: '587'
+  MAIL_USERNAME: postmaster@techglow.se
+  MEMCACHED_HOST: memcached
+  QUEUE_CONNECTION: sync
+  SESSION_DRIVER: file
+  SESSION_LIFETIME: '512'
+
+#  SCOUT_DRIVER=meilisearch
+#  MEILISEARCH_HOST=http://meilisearch:7700
+#  REDIS_HOST=redis
+#  REDIS_PASSWORD=null
+#  REDIS_PORT=6379

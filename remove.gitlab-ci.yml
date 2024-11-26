@@ -1,0 +1,93 @@
+stages:
+  - prebuild
+  - build
+  - deploy
+
+services:
+  - mariadb/server:10.3
+  - postgres:15
+  - redis:latest
+
+cache:
+  paths:
+    - .cache/composer
+
+variables:
+  COMPOSER_HOME: "$CI_PROJECT_DIR/.cache/composer"
+
+build:
+  stage: prebuild
+  image: registry.port30.net:443/techglow/docker-images:latest
+  artifacts:
+    paths:
+      - techglow/vendor
+    expire_in: 1 week
+  script:
+    - apt-get update && apt-get install -yqq curl zip unzip curl
+    - curl -sS https://getcomposer.org/installer | php
+    - cd techglow
+    - php ../composer.phar config http-basic.nova.laravel.com "${NOVA_USERNAME}" "${NOVA_PASSWORD}"
+    - php ../composer.phar install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      exists:
+        - Dockerfile
+
+docker:
+  stage: build
+  dependencies:
+    - build
+  image: docker:latest
+  artifacts:
+    paths:
+      - techglow/vendor
+    expire_in: 1 week
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -t "$CI_REGISTRY_IMAGE/${CI_COMMIT_REF_SLUG}:${CI_PIPELINE_ID}" -t "$CI_REGISTRY_IMAGE/${CI_COMMIT_REF_SLUG}:latest" .
+    - docker push -a "$CI_REGISTRY_IMAGE/${CI_COMMIT_REF_SLUG}"
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      exists:
+        - Dockerfile
+
+deploy-live:
+  stage: deploy
+  dependencies:
+    - docker
+  image: dtzar/helm-kubectl:latest
+  environment:
+    name: production
+    url: https://techglow.se/
+  only:
+    refs:
+      - main
+  before_script:
+    - mkdir ~/.kube
+    - echo $kconfig | base64 -d > ~/.kube/config
+    - kubectl create secret docker-registry gitlab-registry --docker-server="$CI_REGISTRY" --docker-username="$CI_DEPLOY_USER" --docker-password="$CI_DEPLOY_PASSWORD" --docker-email="$GITLAB_USER_EMAIL" -o yaml --dry-run=client | kubectl -n techglow-web apply -f -
+  script:
+    - cd deployment/production
+    - sed -e "s|__IMAGE__|$CI_REGISTRY_IMAGE/${CI_COMMIT_REF_SLUG}:${CI_PIPELINE_ID}|g" deployment.yml | kubectl apply -f -
+
+
+deploy-uat:
+  stage: deploy
+  dependencies:
+    - docker
+  image: dtzar/helm-kubectl:latest
+  only:
+    refs:
+      - develop
+  environment:
+    name: staging
+    url: https://uat.techglow.se/
+  before_script:
+    - mkdir ~/.kube
+    - echo $kconfig | base64 -d > ~/.kube/config
+    - kubectl create secret docker-registry gitlab-registry --docker-server="$CI_REGISTRY" --docker-username="$CI_DEPLOY_USER" --docker-password="$CI_DEPLOY_PASSWORD" --docker-email="$GITLAB_USER_EMAIL" -o yaml --dry-run=client | kubectl -n techglow-web apply -f -
+  script:
+    - cd deployment/uat
+    - sed -e "s|__IMAGE__|$CI_REGISTRY_IMAGE/${CI_COMMIT_REF_SLUG}:${CI_PIPELINE_ID}|g" deployment.yml | kubectl apply -f -

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: techglow-uat
+  name: uat-techglow-se
+  labels:
+    app: httpd-uat-techglow-se
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: httpd-uat-techglow-se
+  template:
+    metadata:
+      labels:
+        app: httpd-uat-techglow-se
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+      containers:
+        - name: httpd-uat-techglow-se
+          image: __IMAGE__
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: env-configmap
+            - secretRef:
+                name: env-secrets
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: techglow-uat
+  labels:
+    app: httpd-uat-techglow-se
+  name: httpd-uat-techglow-se
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: httpd-uat-techglow-se
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: techglow-uat
+  annotations:
+    cert-manager.io/cluster-issuer: lets-encrypt
+    nginx.ingress.kubernetes.io/proxy_pass_request_headers : "true"
+    nginx.ingress.kubernetes.io/whitelist-source-range: 90.227.13.46, 83.254.194.143, 213.89.131.6, 155.4.254.178
+#    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+#    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  name: httpd-uat-techglow-se-ingress
+spec:
+  tls:
+    - hosts:
+        - uat.techglow.se
+      secretName: microbot-ingress-tls
+  rules:
+    - host: uat.techglow.se
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: httpd-uat-techglow-se
+                port:
+                  number: 80
